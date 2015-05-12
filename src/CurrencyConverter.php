@@ -1,8 +1,4 @@
 <?php
-
-/**
- * @author  oke.ugwu
- */
 namespace XchangeZilla;
 
 use XchangeZilla\Exceptions\InvalidCurrencyException;
@@ -13,12 +9,21 @@ class CurrencyConverter
   private $_apiKey;
   private $_rates;
 
+  /**
+   * @param string $apiKey
+   */
   public function __construct($apiKey)
   {
     $this->_apiKey = $apiKey;
   }
 
-  public function convert($from, $to, $amount, $refresh = false)
+  /**
+   * @param bool $refresh
+   *
+   * @return mixed
+   * @throws InvalidResponseException
+   */
+  public function getRates($refresh = false)
   {
     if($this->_rates === null || $refresh)
     {
@@ -28,25 +33,53 @@ class CurrencyConverter
       );
       $this->_rates = json_decode($data);
     }
-    if($this->_rates)
-    {
-      if(isset($this->_rates->rates->$from)
-        && isset($this->_rates->rates->$to)
-      )
-      {
-        return ($this->_rates->rates->$to * $amount) / $this->_rates->rates->$from;
-      }
-      else
-      {
-        throw new InvalidCurrencyException("Invalid From or To currency");
-      }
-    }
-    else
+    if(!$this->_rates)
     {
       throw new InvalidResponseException(
-        'Failed to get rates from openexchanerates.org'
+        'Failed to get rates from openexchangerates.org'
       );
     }
+    return $this->_rates;
+  }
+
+  /**
+   * Rates should be a JSON string
+   *
+   * @param string $rates
+   */
+  public function setRates($rates)
+  {
+    $this->_rates = $rates;
+  }
+
+  /**
+   * @param string $currency
+   *
+   * @return double
+   * @throws InvalidCurrencyException
+   * @throws InvalidResponseException
+   */
+  public function getRate($currency)
+  {
+    $rates = $this->getRates();
+    if(isset($rates->rates->$currency))
+    {
+      return $rates->rates->$currency;
+    }
+    throw new InvalidCurrencyException("Invalid From or To currency");
+  }
+
+  /**
+   * @param string $from
+   * @param string $to
+   * @param double $amount
+   *
+   * @return float
+   * @throws InvalidCurrencyException
+   */
+  public function convert($from, $to, $amount)
+  {
+    return ($this->getRate($to) * $amount) / $this->getRate($from);
   }
 }
 
